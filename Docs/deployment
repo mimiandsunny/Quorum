@@ -1,0 +1,80 @@
+
+⏺ Everything is built. Here's the summary:
+
+  ---
+  What's built — the full vertical slice
+
+  26 files, 25 tests passing.
+
+  stockinvest/
+  ├── config.py                        # Env-based settings (API keys, tickers, thresholds)
+  ├── main.py                          # FastAPI dashboard + /api/signals + /api/run
+  ├── scheduler.py                     # 6:30 AM ET cron + --now for testing
+  ├── data/
+  │   ├── models.py                    # 16 Pydantic schemas (the contract)
+  │   ├── pipeline.py                  # YFinance data + deterministic indicators (RSI, MACD, MA, S/R)
+  │   └── storage.py                   # PostgreSQL storage (upsert signals, debates, reports)
+  ├── agents/
+  │   ├── llm.py                       # LLM client factory (Ollama/llama.cpp local + OpenAI cloud)
+  │   ├── analysts/
+  │   │   ├── technical.py             # LOCAL — interprets pre-computed indicators
+  │   │   ├── fundamentals.py          # LOCAL — assesses valuation + financial health
+  │   │   ├── sentiment.py             # LOCAL — scores news sentiment
+  │   │   └── news.py                  # LOCAL — categorizes events by impact
+  │   ├── researchers/
+  │   │   ├── bull.py                  # CLOUD — builds optimistic case with citations
+  │   │   └── bear.py                  # CLOUD — builds pessimistic case with citations
+  │   ├── trader.py                    # CLOUD — synthesizes decision + entry/stop/target
+  │   ├── risk_manager.py              # PURE PYTHON — deterministic rules, no LLM
+  │   └── graph.py                     # LangGraph state machine orchestrating all stages
+  ├── templates/
+  │   └── dashboard.html               # Dark-themed signals table with expandable debates
+  └── tests/
+      ├── test_models.py               # 9 tests — schema validation + serialization
+      └── test_risk_manager.py         # 16 tests — exhaustive rule coverage
+
+  To get it running you need:
+
+  1. PostgreSQL — createdb stockinvest
+  2. Local LLM — either Ollama (`ollama pull qwen3-30b-a3b`) or llama.cpp with a GGUF model path
+  3. API keys — copy .env.example to .env and fill in OPENAI_API_KEY + DATABASE_URL
+  4. Install deps — pip install -r requirements.txt
+     - Optional llama.cpp path — pip install -r requirements-llamacpp.txt
+     - For NVIDIA/CUDA llama.cpp builds, use CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 pip install --force-reinstall --no-cache-dir --no-binary llama-cpp-python -r requirements-llamacpp.txt
+  5. Test run — python scheduler.py --now (runs pipeline immediately)
+  6. Dashboard — uvicorn main:app --reload then open http://localhost:8000
+
+  Architecture flow:
+
+  Data (YFinance) → 4 Analysts (local model) → Bull+Bear Debate (cloud OpenAI)
+  → Trader Synthesis (cloud) → Risk Manager (pure Python) → PostgreSQL → Dashboard
+
+✻ Cooked for 5m 41s
+
+❯ PostgreSQL — createdb stockinvest
+  give me the details
+
+⏺ Here's the full setup for PostgreSQL on macOS:
+
+  1. Install PostgreSQL (if not already installed):
+
+  brew install postgresql@17
+
+  2. Start the service:
+
+  brew services start postgresql@17
+
+  3. Create the database:
+
+  createdb stockinvest
+
+  4. Verify it works:
+
+  psql stockinvest -c "SELECT 1;"
+
+  5. Update your .env:
+
+  DATABASE_URL=postgresql://localhost:5432/stockinvest
+
+  The default config uses your macOS username with no password for local connections, which is how Homebrew PostgreSQL ships. The app will auto-create all tables on first startup via
+   init_db().

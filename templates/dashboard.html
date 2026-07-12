@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockInvest — AI Trading Signals</title>
+    <style>
+        :root {
+            /* Surfaces */
+            --bg: #0a0a0f;
+            --bg-surface: #0d0d18;
+            --bg-surface-hover: #0d0d1a;
+            --bg-elevated: #111122;
+            --bg-chip: #1a1a2e;
+
+            /* Borders */
+            --border: #1a1a2e;
+            --border-row: #141420;
+            --border-subtle: #222;
+
+            /* Text (all ≥ 4.5:1 on --bg) */
+            --text-strong: #fff;
+            --text: #e0e0e0;
+            --text-price: #cfcfd4;
+            --text-muted: #9a9aa0;   /* was #666 → 4.0:1, now 6.4:1 */
+            --text-dim: #8a8a90;     /* was #555 → 3.2:1, now 5.5:1 */
+            --text-faint: #7a7a80;   /* was #444 → 2.3:1, now 4.7:1 */
+
+            /* Accent (info / links) */
+            --accent: #7eb8ff;
+            --accent-bg: #1e3a5f;
+            --accent-border: #2d5a8e;
+            --accent-hover-bg: #254d7a;
+            --accent-hover-border: #3d7ac0;
+
+            /* Semantic status */
+            --green: #34d399;
+            --green-bg: #0a2e1a;
+            --green-border: #1e5a3a;
+            --red: #f87171;
+            --red-bg: #2e0a0a;
+            --red-border: #5a1e1e;
+            --yellow: #fbbf24;
+            --yellow-bg: #2e2a0a;
+            --yellow-border: #5a4e1e;
+            --purple: #a78bfa;
+
+            /* Spinner */
+            --spinner-track: #333;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 24px; }
+        h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 4px; color: var(--text-strong); }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+        .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filters a { padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; background: var(--bg-chip); color: var(--text-muted); border: 1px solid var(--border-subtle); }
+        .filters a.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
+        .filters a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .signals-table { width: 100%; border-collapse: collapse; }
+        .signals-table th { text-align: left; padding: 10px 12px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+        .signals-table td { padding: 12px; border-bottom: 1px solid var(--border-row); font-size: 0.85rem; }
+        .signals-table tr:hover { background: var(--bg-surface-hover); }
+        .ticker { font-weight: 700; color: var(--text-strong); font-size: 0.95rem; }
+        .decision { font-weight: 600; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; text-transform: uppercase; }
+        .decision.BUY { background: var(--green-bg); color: var(--green); }
+        .decision.SELL { background: var(--red-bg); color: var(--red); }
+        .decision.HOLD { background: var(--yellow-bg); color: var(--yellow); }
+        .recommendation-chip { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .recommendation-chip.trade { background: var(--green-bg); color: var(--green); }
+        .recommendation-chip.blocked { background: var(--red-bg); color: var(--red); }
+        .recommendation-chip.hold { background: var(--yellow-bg); color: var(--yellow); }
+        .action-subtext { margin-top: 4px; font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+        .confidence { font-variant-numeric: tabular-nums; }
+        .confidence.high { color: var(--green); }
+        .confidence.mid { color: var(--yellow); }
+        .confidence.low { color: var(--red); }
+        .verdict { font-size: 0.75rem; font-weight: 600; }
+        .verdict.APPROVED { color: var(--green); }
+        .verdict.REJECTED { color: var(--red); }
+        .price { font-variant-numeric: tabular-nums; color: var(--text-price); }
+
+        details { margin-top: 4px; }
+        details summary { cursor: pointer; color: var(--accent); font-size: 0.8rem; }
+        details summary:hover { color: var(--accent); filter: brightness(1.15); }
+        .debate-panel { padding: 16px; margin: 8px 0 16px; background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border); }
+        .debate-panel h3 { font-size: 0.85rem; margin-bottom: 8px; }
+        .debate-panel h3.bull { color: var(--green); }
+        .debate-panel h3.bear { color: var(--red); }
+        .debate-panel p { font-size: 0.82rem; line-height: 1.6; color: var(--text); margin-bottom: 12px; }
+        .risk-reasons { list-style: none; padding: 0; }
+        .risk-reasons li { font-size: 0.8rem; color: var(--red); padding: 2px 0; }
+        .risk-reasons li::before { content: "\2715 "; }
+        .meta { font-size: 0.75rem; color: var(--text-faint); display: flex; gap: 16px; }
+        .empty { text-align: center; padding: 60px 0; color: var(--text-dim); }
+
+        /* Run button */
+        .btn-run { padding: 8px 20px; border-radius: 8px; border: 1px solid var(--accent-border); background: var(--accent-bg); color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-run:hover { background: var(--accent-hover-bg); border-color: var(--accent-hover-border); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-run.running { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow-border); }
+        .btn-run.stop { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+        .btn-run.stop:hover { background: color-mix(in srgb, var(--red-bg) 70%, var(--red) 30%); border-color: var(--red); }
+        .btn-run.success { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+        .btn-run.error { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+        .btn-run:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        /* Status bar */
+        .run-status { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; padding: 10px 14px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border); display: none; }
+        .run-status.visible { display: block; }
+        .run-status .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--spinner-track); border-top-color: var(--yellow); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Partial-results strip */
+        .run-strip { margin-bottom: 16px; padding: 10px 14px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border); font-size: 0.82rem; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+        .run-strip .ok { color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
+        .run-strip .warn { color: var(--yellow); font-weight: 600; font-variant-numeric: tabular-nums; }
+        .run-strip .failed-list { color: var(--yellow); }
+        .run-strip .muted { color: var(--text-muted); }
+        .run-strip.degraded { border-color: var(--yellow-border); background: color-mix(in srgb, var(--yellow-bg) 50%, var(--bg-surface)); }
+
+        /* Digest section */
+        .digest-section { margin-bottom: 16px; }
+        .digest-toggle { background: none; border: none; color: var(--accent); font-size: 0.8rem; cursor: pointer; padding: 0; }
+        .digest-toggle:hover { filter: brightness(1.15); }
+        .digest-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
+        .digest-badge.fresh { background: var(--green-bg); color: var(--green); }
+        .digest-badge.none { background: var(--bg-chip); color: var(--text-dim); }
+        .digest-panel { display: none; margin-top: 8px; }
+        .digest-panel.open { display: block; }
+        .digest-panel textarea { width: 100%; height: 120px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 10px; font-size: 0.8rem; font-family: inherit; resize: vertical; }
+        .digest-panel textarea:focus { outline: none; border-color: var(--accent-border); }
+        .digest-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+        .btn-digest { padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent-border); background: var(--accent-bg); color: var(--accent); font-size: 0.8rem; cursor: pointer; }
+        .btn-digest:hover { background: var(--accent-hover-bg); }
+        .digest-feedback { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* Score badge */
+        .score-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+        .score-badge.good { background: var(--green-bg); color: var(--green); }
+        .score-badge.ok { background: var(--yellow-bg); color: var(--yellow); }
+        .score-badge.bad { background: var(--red-bg); color: var(--red); }
+
+        /* Leaderboard */
+        .leaderboard { margin-top: 32px; }
+        .leaderboard h2 { font-size: 1rem; font-weight: 600; color: var(--text-strong); margin-bottom: 12px; }
+        .leaderboard-table { width: 100%; max-width: 600px; border-collapse: collapse; }
+        .leaderboard-table th { text-align: left; padding: 8px 12px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+        .leaderboard-table td { padding: 8px 12px; font-size: 0.82rem; border-bottom: 1px solid var(--border-row); }
+        .leaderboard-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+
+        /* Changelog */
+        .changelog { margin-bottom: 16px; padding: 12px 16px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; }
+        .changelog h3 { font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .changelog-item { font-size: 0.82rem; padding: 3px 0; color: var(--text-price); }
+        .changelog-item.changed { color: var(--yellow); }
+        .changelog-item.new { color: var(--green); }
+        .changelog-item.adjusted { color: var(--purple); }
+        .section-head { margin: 18px 0 10px; color: var(--text-strong); font-size: 1rem; font-weight: 600; }
+        .ticket-grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+        .ticket-item { padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; }
+        .ticket-item .label { display: block; margin-bottom: 4px; font-size: 0.64rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+        .ticket-item .value { color: var(--text-strong); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+        .v2-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .v2-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+        .v2-card.approved { border-left: 3px solid var(--green); }
+        .v2-card.rejected { border-left: 3px solid var(--red); }
+        .v2-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+        .v2-title { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .v2-ticker { font-size: 1rem; color: var(--text-strong); font-weight: 800; }
+        .v2-meta { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+        .v2-id { font-size: 0.68rem; color: var(--text-faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .v2-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 12px; }
+        .v2-metric { background: var(--bg-surface); border: 1px solid var(--border-row); border-radius: 6px; padding: 8px; }
+        .v2-metric .label { display: block; color: var(--text-dim); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .v2-metric .value { color: var(--text); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+        .v2-thesis { color: var(--text); font-size: 0.82rem; line-height: 1.5; margin: 8px 0; }
+        .v2-risk { color: var(--red); font-size: 0.78rem; margin-top: 8px; }
+        .v2-paper { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 10px; }
+        .paper-label { color: var(--text-dim); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px; }
+        .alpha-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .alpha-chip { font-size: 0.66rem; padding: 3px 7px; border-radius: 10px; background: var(--bg-chip); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        .alpha-chip.long { color: var(--green); background: var(--green-bg); }
+        .alpha-chip.short { color: var(--red); background: var(--red-bg); }
+        .alpha-chip.flat { color: var(--yellow); background: var(--yellow-bg); }
+        .legacy-note { margin: -4px 0 12px; color: var(--text-muted); font-size: 0.78rem; }
+        .section-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+        .section-row .section-head { margin: 0 0 10px; }
+        .btn-options { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent-border); background: var(--accent-bg); color: var(--accent); font-size: 0.78rem; cursor: pointer; }
+        .btn-options:hover { background: var(--accent-hover-bg); }
+        .btn-options:disabled { opacity: 0.5; cursor: not-allowed; }
+        .options-status { min-height: 18px; margin: -4px 0 8px; color: var(--text-muted); font-size: 0.75rem; }
+        .options-table .contract { color: var(--text-strong); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; }
+        .option-type { display: inline-block; min-width: 36px; padding: 2px 7px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; text-align: center; text-transform: uppercase; }
+        .option-type.call { color: var(--green); background: var(--green-bg); }
+        .option-type.put { color: var(--red); background: var(--red-bg); }
+        .iv-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .iv-label.cheap { color: var(--green); }
+        .iv-label.rich { color: var(--yellow); }
+        .iv-label.fair, .iv-label.unknown { color: var(--text-muted); }
+        .option-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+        .option-tag { padding: 2px 7px; border-radius: 10px; background: var(--bg-chip); color: var(--text-muted); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .option-tag.unusual_flow { color: var(--accent); background: var(--accent-bg); }
+        .option-tag.cheap_vol { color: var(--green); background: var(--green-bg); }
+        .option-tag.rich_vol { color: var(--yellow); background: var(--yellow-bg); }
+
+        /* Wave 2 DR1-DR9 — Options Cockpit additions. All reuse existing
+           tokens; no new colors/fonts/radii (per DESIGN.md). */
+        .options-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 22px; margin: 0 0 12px; padding: 0; font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        .options-status-row .slot { display: inline-flex; align-items: center; gap: 6px; }
+        .options-status-row .slot.fresh { color: var(--text-muted); }
+        .options-status-row .slot.stale { color: var(--yellow); }
+        .options-status-row .slot.expired { color: var(--red); }
+        .options-status-row .slot.idle { color: var(--text-faint); }
+        .options-status-row .slot .spinner { width: 12px; height: 12px; border-width: 1.5px; }
+        .options-status-row .divider { width: 1px; height: 14px; background: var(--border); }
+        .iv-label.insufficient { color: var(--text-dim); background: var(--bg-chip); padding: 1px 7px; border-radius: 4px; }
+
+        /* DR8 IV-rank screener inline cold-start subsection */
+        .iv-screener-table { width: 100%; }
+        .iv-screener-table td.iv-rank { font-variant-numeric: tabular-nums; color: var(--text-strong); }
+        .option-iv-history-section td { color: var(--text-dim); }
+        .option-iv-history-section .legacy-note { padding: 8px 12px; color: var(--text-dim); font-size: 0.72rem; font-style: italic; }
+        .option-iv-history-section .legacy-note .divider-row { margin-right: 6px; }
+
+        /* DR9 protect-field on .v2-grid card */
+        .protect-field { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; margin-top: 6px; background: var(--bg-chip); border-radius: 4px; font-size: 0.72rem; color: var(--text); font-variant-numeric: tabular-nums; }
+        .protect-field .protect-label { color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.62rem; }
+        .protect-field .protect-strike { color: var(--text-strong); }
+        .protect-field .protect-cost { color: var(--text-strong); }
+        .protect-field .protect-delta { color: var(--text-muted); }
+        .protect-field .option-type.put { margin-left: 0; }
+
+        /* DR7 Greeks-confidence TINY indicator. ▲ = verified, △ = estimated.
+           Width-zero accessible name via aria-label kept in markup. */
+        .greeks-confidence { display: inline-block; font-size: 0.62rem; line-height: 1; vertical-align: middle; }
+        .greeks-confidence.provider { color: var(--green); }
+        .greeks-confidence.local_bs { color: var(--accent); }
+        .greeks-confidence.provider_nan { color: var(--yellow); }
+        .greeks-confidence.none { color: var(--text-faint); }
+
+        /* DR2 source chip — reuses .alpha-chip shape per DESIGN.md */
+        .option-source-chip { display: inline-block; padding: 1px 7px; border-radius: 10px; background: var(--bg-chip); color: var(--text-muted); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .option-source-chip.ibkr { color: var(--green); background: var(--green-bg); }
+        .option-source-chip.yfinance { color: var(--yellow); background: var(--yellow-bg); }
+        .option-source-chip.fallback { color: var(--yellow); background: var(--yellow-bg); }
+
+        /* DR5 D4 thesis two-column inline panel. Lives inside .debate-panel
+           so it reuses the existing background; no new shadow/border. */
+        .option-thesis-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px 14px; background: var(--bg-elevated); border-radius: 8px; margin-top: 8px; }
+        .option-thesis-panel .panel-col { display: flex; flex-direction: column; gap: 6px; }
+        .option-thesis-panel .col-head { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+        .option-thesis-leg { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text); font-variant-numeric: tabular-nums; }
+        .option-thesis-leg .qty { font-weight: 600; min-width: 16px; text-align: center; }
+        .option-thesis-leg .qty.long { color: var(--green); }
+        .option-thesis-leg .qty.short { color: var(--red); }
+        .option-thesis-leg .strike { color: var(--text-strong); }
+        .option-thesis-leg .leg-mid { color: var(--text-muted); }
+        .option-payoff-svg { display: block; width: 80px; height: 40px; margin-top: 6px; }
+        .option-payoff-svg .payoff-line { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+        .option-payoff-svg .payoff-zero { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 2; }
+        .option-thesis-summary { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+        .option-thesis-summary .stat { color: var(--text-strong); font-variant-numeric: tabular-nums; }
+        .option-thesis-summary .stat.pos { color: var(--green); }
+        .option-thesis-summary .stat.neg { color: var(--red); }
+        .option-thesis-narrative { font-size: 0.82rem; color: var(--text); line-height: 1.5; }
+        .option-thesis-narrative.unavailable { color: var(--text-dim); font-style: italic; }
+
+        /* DR5 thumbs-up/down feedback chip pair */
+        .thesis-feedback { display: inline-flex; gap: 6px; margin-top: 8px; }
+        .thesis-feedback button { padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-chip); color: var(--text-muted); font-size: 0.7rem; cursor: pointer; transition: all 0.15s ease; }
+        .thesis-feedback button:hover { color: var(--text); border-color: var(--border-subtle); }
+        .thesis-feedback button.active.up { color: var(--green); border-color: var(--green); background: var(--green-bg); }
+        .thesis-feedback button.active.down { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+
+        /* DR9 two-tab disclosure inside .v2-card. Reuses native details/summary
+           keyboard accessibility (DESIGN.md). */
+        .thesis-tabs { display: inline-flex; gap: 6px; margin-top: 6px; }
+        .thesis-tabs button { padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-chip); color: var(--text); font-size: 0.72rem; cursor: pointer; }
+        .thesis-tabs button:hover { color: var(--accent); border-color: var(--accent-border); }
+        .thesis-tabs button.active { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+        .thesis-loading { padding: 12px 14px; color: var(--text-muted); font-size: 0.78rem; }
+
+        /* DR7 responsive collapse */
+        @media (max-width: 800px) {
+            .option-thesis-panel { grid-template-columns: 1fr; }
+        }
+
+        /* Concentration warning */
+        .concentration-warning { margin-bottom: 16px; padding: 12px 16px; background: var(--yellow-bg); border: 1px solid var(--yellow-border); border-radius: 8px; color: var(--yellow); font-size: 0.82rem; }
+        .concentration-warning strong { color: var(--yellow); }
+
+        /* Date picker */
+        .date-picker { margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .date-picker label { font-size: 0.8rem; color: var(--text-muted); }
+        .date-picker input[type="date"] { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 0.8rem; }
+        .date-picker input[type="date"]:focus { outline: none; border-color: var(--accent-border); }
+
+        /* Execution stats panel (v1.2) */
+        .exec-stats { display: flex; gap: 18px; padding: 12px 16px; margin-bottom: 16px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap; align-items: center; }
+        .exec-stats .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 4px; }
+        .exec-stats .stat { font-size: 0.88rem; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+        .exec-stats .stat.green { color: var(--green); }
+        .exec-stats .stat.red { color: var(--red); }
+        .exec-stats .stat.dim { color: var(--text-muted); }
+        .exec-stats .divider { width: 1px; height: 16px; background: var(--border); }
+        .rec-summary { display: flex; gap: 18px; padding: 12px 16px; margin-bottom: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap; align-items: center; }
+        .rec-summary .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 4px; }
+        .rec-summary .stat { font-size: 0.88rem; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+        .rec-summary .stat.green { color: var(--green); }
+        .rec-summary .stat.red { color: var(--red); }
+        .rec-summary .stat.dim { color: var(--text-muted); }
+        .rec-summary .divider { width: 1px; height: 16px; background: var(--border); }
+
+        /* Debate timeline (v1.2 — D7) */
+        .debate-timeline { margin-top: 12px; }
+        .judge-verdict { padding: 10px 14px; margin-bottom: 12px; background: var(--bg-elevated); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 0.85rem; }
+        .judge-verdict .judge-header { color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+        .judge-verdict .judge-swing { color: var(--text); margin-top: 4px; font-style: italic; }
+        .debate-round { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .debate-round-header { grid-column: 1 / -1; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-top: 8px; }
+        .round-card { padding: 10px 12px; border-radius: 4px; font-size: 0.82rem; }
+        .round-card.bull-card { background: var(--bg-surface); border-left: 2px solid var(--green); }
+        .round-card.bear-card { background: var(--bg-surface); border-left: 2px solid var(--red); }
+        .round-card .role-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 4px; }
+        .round-card.bull-card .role-label { color: var(--green); }
+        .round-card.bear-card .role-label { color: var(--red); }
+
+        /* Paper trade chip on signal row (v1.2 base, wave 1.5: 3 chips per row) */
+        .paper-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 4px; margin-bottom: 2px; }
+        .paper-chip.filled { background: rgba(46, 160, 67, 0.18); color: var(--green); }
+        .paper-chip.submitted { background: rgba(88, 166, 255, 0.18); color: var(--accent); }
+        .paper-chip.failed { background: rgba(248, 81, 73, 0.18); color: var(--red); }
+        .paper-chip.unfilled_eod { background: rgba(210, 153, 34, 0.18); color: var(--yellow); }
+        .paper-chip.execution_skipped { background: rgba(139, 148, 158, 0.18); color: var(--text-muted); }
+        .paper-chip.pending { background: rgba(139, 148, 158, 0.12); color: var(--text-dim); }
+        .paper-chips-cluster { display: inline-flex; flex-wrap: wrap; gap: 0; line-height: 1.4; }
+
+        /* E3 wave 1.5: strategy summary panel — top-of-dashboard 3-strategy comparison */
+        .strategy-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 20px; }
+        .strategy-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+        .strategy-card .strategy-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+        .strategy-card .strategy-name { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+        .strategy-card.aggressive .strategy-name { color: var(--purple); }
+        .strategy-card.balanced .strategy-name { color: var(--accent); }
+        .strategy-card.conservative .strategy-name { color: var(--yellow); }
+        .strategy-card .strategy-notional { font-size: 0.68rem; color: var(--text-dim); }
+        .strategy-card .pnl-today { font-size: 1.4rem; font-weight: 600; line-height: 1.1; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+        .strategy-card .pnl-today.pos { color: var(--green); }
+        .strategy-card .pnl-today.neg { color: var(--red); }
+        .strategy-card .pnl-today.neutral { color: var(--text-muted); }
+        .strategy-card .pnl-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 8px; }
+        .strategy-card .sparkline-wrap { margin: 8px 0; }
+        .strategy-card .sparkline-wrap svg { display: block; }
+        .strategy-card .sparkline-empty { font-size: 0.7rem; color: var(--text-dim); text-align: center; padding: 10px 0; font-family: monospace; }
+        .strategy-card .pnl-aux { font-size: 0.74rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        .strategy-card .pnl-aux .row { display: flex; justify-content: space-between; }
+        .strategy-card.disabled { opacity: 0.55; }
+        .strategy-card .disabled-tag { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        @media (max-width: 800px) {
+            .strategy-summary { grid-template-columns: 1fr; }
+            .ticket-grid { grid-template-columns: 1fr 1fr; }
+            .v2-metrics { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI Trading Signals</h1>
+        <button class="btn-run" id="runBtn" onclick="onRunButtonClick()">Run Analysis</button>
+    </div>
+    <p class="subtitle">{{ report_date }} &middot; {{ recommendations|length }} recommendations &middot; {{ signals|length }} compatibility signals</p>
+
+    {% if run_status %}
+    {% set attempted_count = run_status.attempted|length %}
+    {% set completed_count = run_status.completed|length %}
+    {% set failed_count = run_status.failed|length %}
+    <div class="run-strip{% if failed_count %} degraded{% endif %}">
+        {% if failed_count %}
+        <span class="warn">{{ completed_count }}/{{ attempted_count }} completed</span>
+        <span class="failed-list">{{ failed_count }} failed: {{ run_status.failed|join(', ') }}</span>
+        {% else %}
+        <span class="ok">{{ completed_count }}/{{ attempted_count }} completed</span>
+        {% endif %}
+        {% if run_status.end_time %}
+        <span class="muted">Last run {{ run_status.end_time.strftime('%H:%M') }}</span>
+        {% elif run_status.start_time %}
+        <span class="muted">Started {{ run_status.start_time.strftime('%H:%M') }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="run-status" id="runStatus"></div>
+
+    <div class="digest-section">
+        <button class="digest-toggle" onclick="toggleDigest()">
+            ChatGPT Digest
+            {% if has_digest %}
+            <span class="digest-badge fresh">Updated {{ digest_date }}</span>
+            {% else %}
+            <span class="digest-badge none">No digest</span>
+            {% endif %}
+        </button>
+        <div class="digest-panel" id="digestPanel">
+            <textarea id="digestText" placeholder="Paste your ChatGPT daily macro analysis here..."></textarea>
+            <div class="digest-actions">
+                <button class="btn-digest" onclick="saveDigest()">Save Digest</button>
+                <span class="digest-feedback" id="digestFeedback"></span>
+            </div>
+        </div>
+    </div>
+
+    {% if concentration_warnings %}
+    <div class="concentration-warning">
+        <strong>Concentration Risk:</strong>
+        {% for warning in concentration_warnings %}
+        <div>{{ warning }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# E3 wave 1.5: per-strategy summary panel — top-of-dashboard daily comparison #}
+    {% if strategies_meta %}
+    <div class="strategy-summary">
+        {% for sm in strategies_meta %}
+            {% set ss = strategy_summary.get(sm.name) if strategy_summary else None %}
+            {% set snap_count = ss.snapshot_count if ss else 0 %}
+            {% set today_pnl = ss.today_pnl if ss else 0 %}
+            {% set week_pnl = ss.week_pnl if ss else 0 %}
+            {% set all_pnl = ss.all_time_pnl if ss else 0 %}
+            {% set curve = ss.equity_curve if ss else [] %}
+            <div class="strategy-card {{ sm.name }} {{ 'disabled' if not sm.enabled else '' }}">
+                <div class="strategy-head">
+                    <span class="strategy-name">{{ sm.display_name }}</span>
+                    <span class="strategy-notional">{{ "%.1f"|format(sm.notional_pct * 100) }}% / trade</span>
+                </div>
+                {% if not sm.enabled %}
+                    <div class="pnl-today neutral">———</div>
+                    <div class="pnl-label">disabled · creds missing</div>
+                {% elif snap_count < 2 %}
+                    <div class="pnl-today neutral">———</div>
+                    <div class="pnl-label">today</div>
+                    <div class="sparkline-empty">collecting data…</div>
+                    <div class="pnl-aux">
+                        <div class="row"><span>Week</span><span>———</span></div>
+                        <div class="row"><span>All</span><span>———</span></div>
+                    </div>
+                {% else %}
+                    {% set today_class = 'pos' if today_pnl > 0 else 'neg' if today_pnl < 0 else 'neutral' %}
+                    <div class="pnl-today {{ today_class }}">{{ "%+,.0f"|format(today_pnl) }}</div>
+                    <div class="pnl-label">today</div>
+                    <div class="sparkline-wrap">
+                        {# Inline SVG sparkline, ~140x36, line + 2 gridlines + min/max dots + axis tick #}
+                        {% set w = 140 %}{% set h = 36 %}
+                        {% set points = curve %}
+                        {% if points|length >= 2 %}
+                            {% set values = points|map(attribute=1)|list %}
+                            {% set vmin = values|min %}{% set vmax = values|max %}{% set vspan = (vmax - vmin) if (vmax - vmin) > 0 else 1 %}
+                            <svg width="{{ w }}" height="{{ h }}" viewBox="0 0 {{ w }} {{ h }}" aria-label="{{ sm.display_name }} 30-day equity">
+                                {# 2 faint gridlines at 25% and 75% of value range #}
+                                <line x1="0" x2="{{ w }}" y1="{{ h * 0.25 }}" y2="{{ h * 0.25 }}" stroke="var(--bg-chip)" stroke-width="1" />
+                                <line x1="0" x2="{{ w }}" y1="{{ h * 0.75 }}" y2="{{ h * 0.75 }}" stroke="var(--bg-chip)" stroke-width="1" />
+                                {# Polyline: x = i / (n-1) * w, y = h - ((v - vmin) / vspan) * h #}
+                                {% set n = points|length %}
+                                <polyline fill="none" stroke="{{ sm.color_token }}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"
+                                    points="{% for p in points %}{{ '%.1f'|format(loop.index0 / (n - 1) * w) }},{{ '%.1f'|format(h - ((p[1] - vmin) / vspan) * h) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+                                {# Min/max dots in muted color #}
+                                {% for p in points %}
+                                    {% if p[1] == vmin or p[1] == vmax %}
+                                        <circle cx="{{ '%.1f'|format(loop.index0 / (n - 1) * w) }}" cy="{{ '%.1f'|format(h - ((p[1] - vmin) / vspan) * h) }}" r="2" fill="var(--text-muted)" />
+                                    {% endif %}
+                                {% endfor %}
+                            </svg>
+                        {% else %}
+                            <div class="sparkline-empty">———</div>
+                        {% endif %}
+                    </div>
+                    <div class="pnl-aux">
+                        <div class="row"><span>Week</span><span class="{{ 'pos' if week_pnl > 0 else 'neg' if week_pnl < 0 else '' }}">{{ "%+,.0f"|format(week_pnl) }}</span></div>
+                        <div class="row"><span>All</span><span class="{{ 'pos' if all_pnl > 0 else 'neg' if all_pnl < 0 else '' }}">{{ "%+,.0f"|format(all_pnl) }}</span></div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if recommendation_summary and recommendation_summary.total %}
+    <div class="rec-summary">
+        <span><span class="label">30D Ledger</span><span class="stat">{{ recommendation_summary.total }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Approved</span><span class="stat green">{{ recommendation_summary.approved }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Rejected</span><span class="stat {{ 'red' if recommendation_summary.rejected else 'dim' }}">{{ recommendation_summary.rejected }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Avg Confidence</span><span class="stat">{{ "%.0f"|format((recommendation_summary.avg_confidence or 0) * 100) }}%</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Avg Target Weight</span><span class="stat">{{ "%.1f"|format((recommendation_summary.avg_target_weight or 0) * 100) }}%</span></span>
+        {% if recommendation_summary.scored %}
+        <span class="divider"></span>
+        <span><span class="label">Avg Score</span><span class="stat">{{ "%.0f"|format((recommendation_summary.avg_score or 0) * 100) }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Avg Excess</span><span class="stat {{ 'green' if recommendation_summary.avg_excess_return_pct and recommendation_summary.avg_excess_return_pct > 0 else 'red' if recommendation_summary.avg_excess_return_pct and recommendation_summary.avg_excess_return_pct < 0 else 'dim' }}">{{ "%+.1f"|format((recommendation_summary.avg_excess_return_pct or 0) * 100) }}%</span></span>
+        {% endif %}
+        {% if recommendation_summary.filled or recommendation_summary.failed or recommendation_summary.skipped %}
+        <span class="divider"></span>
+        <span><span class="label">Paper Fills</span><span class="stat">{{ recommendation_summary.filled }}</span></span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if exec_stats and (exec_stats.submitted or exec_stats.filled or exec_stats.failed or exec_stats.unfilled or exec_stats.open_positions) %}
+    <div class="exec-stats">
+        <span><span class="label">Submitted</span><span class="stat">{{ exec_stats.submitted }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Filled</span><span class="stat green">{{ exec_stats.filled }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Failed</span><span class="stat {{ 'red' if exec_stats.failed else 'dim' }}">{{ exec_stats.failed }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Unfilled@EOD</span><span class="stat {{ 'red' if exec_stats.unfilled else 'dim' }}">{{ exec_stats.unfilled }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Open</span><span class="stat">{{ exec_stats.open_positions }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Unrealized P&amp;L</span><span class="stat {{ 'green' if exec_stats.unrealized_pnl > 0 else 'red' if exec_stats.unrealized_pnl < 0 else 'dim' }}">${{ "%+.2f"|format(exec_stats.unrealized_pnl) }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Realized P&amp;L</span><span class="stat {{ 'green' if exec_stats.realized_pnl > 0 else 'red' if exec_stats.realized_pnl < 0 else 'dim' }}">${{ "%+.2f"|format(exec_stats.realized_pnl) }}</span></span>
+    </div>
+    {% endif %}
+
+    <div class="date-picker">
+        <label for="reportDate">View date:</label>
+        <input type="date" id="reportDate" value="{{ report_date }}" onchange="window.location.href='/?report_date=' + this.value + '&filter={{ filter }}'">
+    </div>
+
+    <div class="filters">
+        <a href="?report_date={{ report_date }}&filter=all" class="{{ 'active' if filter == 'all' else '' }}">All</a>
+        <a href="?report_date={{ report_date }}&filter=BUY" class="{{ 'active' if filter == 'BUY' else '' }}">Buy</a>
+        <a href="?report_date={{ report_date }}&filter=SELL" class="{{ 'active' if filter == 'SELL' else '' }}">Sell</a>
+        <a href="?report_date={{ report_date }}&filter=HOLD" class="{{ 'active' if filter == 'HOLD' else '' }}">Hold</a>
+        <a href="?report_date={{ report_date }}&filter=APPROVED" class="{{ 'active' if filter == 'APPROVED' else '' }}">Approved</a>
+        <a href="?report_date={{ report_date }}&filter=REJECTED" class="{{ 'active' if filter == 'REJECTED' else '' }}">Rejected</a>
+    </div>
+
+    <div class="section-row">
+        <h2 class="section-head">Options Cockpit</h2>
+        <button class="btn-options" id="optionsRefreshBtn" onclick="refreshOptions()">Refresh</button>
+    </div>
+
+    {# DR2 — 3-slot status row: freshness · refresh-job progress · provider source #}
+    <div class="options-status-row" id="optionsStatusRow">
+        {% if options_dashboard and options_dashboard.snapshots %}
+            {% set newest = options_dashboard.snapshots[0] %}
+            <span class="slot fresh" id="freshnessSlot" title="{{ newest.captured_at }}">Last refresh: {{ newest.captured_at }}</span>
+        {% else %}
+            <span class="slot idle">No snapshots yet</span>
+        {% endif %}
+        {% if latest_refresh_job %}
+            <span class="divider"></span>
+            <span class="slot {{ 'fresh' if latest_refresh_job.status == 'success' else ('stale' if latest_refresh_job.status == 'running' else 'expired') }}">
+                {% if latest_refresh_job.status == 'running' %}
+                <span class="spinner"></span>
+                Refreshing {{ latest_refresh_job.completed }}/{{ latest_refresh_job.total }}
+                {% else %}
+                Job {{ latest_refresh_job.status|replace('_', ' ') }} · {{ latest_refresh_job.completed }}/{{ latest_refresh_job.total }}
+                {% endif %}
+            </span>
+        {% endif %}
+        {% set estimated_count = options_dashboard.snapshots|selectattr('source', 'equalto', 'yfinance')|list|length if options_dashboard and options_dashboard.snapshots else 0 %}
+        {% if estimated_count %}
+            <span class="divider"></span>
+            <span class="slot stale">{{ estimated_count }} estimated</span>
+        {% endif %}
+        <span id="optionsRefreshStatus" class="slot idle" style="margin-left: auto;"></span>
+    </div>
+
+    {# DR1 + DR8 — IV-rank screener with inline "building history" subsection.
+       Renders only when there's at least one screener row OR at least one
+       cold-start ticker (DR3 default-empty rule: skip section, don't show empty card). #}
+    {% if iv_screener and (iv_screener.ranked or iv_screener.cold_start) %}
+    <h3 class="section-head" style="font-size: 0.85rem; margin: 14px 0 6px;">IV-Rank Screener</h3>
+    <table class="signals-table iv-screener-table">
+        <thead>
+            <tr>
+                <th>Ticker</th>
+                <th>IV Rank</th>
+                <th>Label</th>
+                <th>ATM 30d</th>
+                <th>ATM 60d</th>
+                <th>ATM 90d</th>
+                <th>Term 30→60</th>
+                <th>Term 60→90</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in iv_screener.ranked %}
+            <tr>
+                <td class="ticker">{{ row.ticker }}</td>
+                <td class="iv-rank">{% if row.iv_rank_30d is not none %}{{ "%.0f"|format(row.iv_rank_30d * 100) }}{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td><span class="iv-label {{ row.iv_label }}">{{ row.iv_label }}</span></td>
+                <td class="price">{% if row.atm_iv_30d is not none %}{{ "%.0f"|format(row.atm_iv_30d * 100) }}%{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td class="price">{% if row.atm_iv_60d is not none %}{{ "%.0f"|format(row.atm_iv_60d * 100) }}%{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td class="price">{% if row.atm_iv_90d is not none %}{{ "%.0f"|format(row.atm_iv_90d * 100) }}%{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td class="price">{% if row.term_structure_30_60 is not none %}{{ "%+.1f"|format(row.term_structure_30_60 * 100) }}{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td class="price">{% if row.term_structure_60_90 is not none %}{{ "%+.1f"|format(row.term_structure_60_90 * 100) }}{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            {% if iv_screener.cold_start %}
+            <tr class="option-iv-history-section">
+                <td colspan="8" class="legacy-note">
+                    <span class="divider-row">—</span>
+                    Building history ({{ iv_screener.cold_start|length }} ticker{{ 's' if iv_screener.cold_start|length != 1 else '' }}, ranking activates at 60 days)
+                    <span class="divider-row">—</span>
+                </td>
+            </tr>
+            {% for ticker in iv_screener.cold_start %}
+            <tr class="option-iv-history-section">
+                <td class="ticker">{{ ticker }}</td>
+                <td><span class="iv-label insufficient">--</span></td>
+                <td><span class="iv-label insufficient">insufficient</span></td>
+                <td colspan="5" style="color: var(--text-dim); font-size: 0.7rem;">waiting on more chain history</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if options_dashboard and options_dashboard.snapshots %}
+    {% set opt_summary = options_dashboard.summary %}
+    <div class="rec-summary">
+        <span><span class="label">Snapshots</span><span class="stat">{{ opt_summary.snapshot_count }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Candidates</span><span class="stat">{{ opt_summary.candidate_count }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Unusual Flow</span><span class="stat {{ 'green' if opt_summary.unusual_flow_count else 'dim' }}">{{ opt_summary.unusual_flow_count }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Cheap IV</span><span class="stat green">{{ opt_summary.cheap_vol_count }}</span></span>
+        <span class="divider"></span>
+        <span><span class="label">Rich IV</span><span class="stat">{{ opt_summary.rich_vol_count }}</span></span>
+    </div>
+    {% if options_dashboard.candidates %}
+    <table class="signals-table options-table">
+        <thead>
+            <tr>
+                <th>Ticker</th>
+                <th>Contract</th>
+                <th>Type</th>
+                <th>DTE</th>
+                <th>Strike</th>
+                <th>Mid</th>
+                <th>IV</th>
+                <th>Spread</th>
+                <th>Vol/OI</th>
+                <th>Premium</th>
+                <th>Rank</th>
+                <th>Tags</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for opt in options_dashboard.candidates %}
+            <tr>
+                <td class="ticker">{{ opt.ticker }}</td>
+                <td class="contract">{{ opt.contract_symbol }}</td>
+                <td><span class="option-type {{ opt.option_type }}">{{ opt.option_type }}</span></td>
+                <td>{{ opt.dte }}</td>
+                <td class="price">${{ "%.2f"|format(opt.strike) }}</td>
+                <td class="price">{% if opt.mid is not none %}${{ "%.2f"|format(opt.mid) }}{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td>
+                    {% if opt.implied_volatility is not none %}
+                    <span class="price">{{ "%.0f"|format(opt.implied_volatility * 100) }}%</span>
+                    <span class="iv-label {{ opt.iv_label }}">{{ opt.iv_label }}</span>
+                    {% else %}
+                    <span style="color: var(--text-faint);">--</span>
+                    {% endif %}
+                </td>
+                <td>{% if opt.spread_pct is not none %}{{ "%.0f"|format(opt.spread_pct * 100) }}%{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td>{% if opt.volume_oi_ratio is not none %}{{ "%.1f"|format(opt.volume_oi_ratio) }}x{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td class="price">{% if opt.premium_dollars is not none %}${{ "{:,.0f}".format(opt.premium_dollars) }}{% else %}<span style="color: var(--text-faint);">--</span>{% endif %}</td>
+                <td>{{ "%.0f"|format(opt.rank_score * 100) }}</td>
+                <td>
+                    <span class="option-tags">
+                        {% for tag in opt.tags %}
+                        <span class="option-tag {{ tag }}">{{ tag|replace('_', ' ') }}</span>
+                        {% endfor %}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% else %}
+    <p class="legacy-note">No option snapshots captured.</p>
+    {% endif %}
+
+    <h2 class="section-head">V2 Recommendation Ledger ({{ recommendations|length }})</h2>
+    {% if recommendations %}
+    <div class="v2-grid">
+        {% for rec in recommendations %}
+        {% set tradeable = rec.risk_verdict == "APPROVED" and rec.decision in ["BUY", "SELL"] and (rec.portfolio_target_weight or 0) > 0 %}
+        <div class="v2-card {{ 'approved' if rec.risk_verdict == 'APPROVED' else 'rejected' }}">
+            <div class="v2-head">
+                <div>
+                    <div class="v2-title">
+                        <span class="v2-ticker">{{ rec.ticker }}</span>
+                        {% if tradeable %}
+                        <span class="recommendation-chip trade">{{ rec.decision }}</span>
+                        {% elif rec.decision == "HOLD" %}
+                        <span class="recommendation-chip hold">HOLD</span>
+                        {% else %}
+                        <span class="recommendation-chip blocked">NO TRADE</span>
+                        {% endif %}
+                    </div>
+                    <div class="v2-meta">{{ rec.strategy_type|replace('_', ' ') }} · {{ rec.side }} · {{ rec.horizon_days }}d horizon</div>
+                </div>
+                <div class="v2-id">{{ rec.recommendation_id[:8] }}</div>
+            </div>
+
+            <div class="v2-metrics">
+                <div class="v2-metric">
+                    <span class="label">Confidence</span>
+                    <span class="value">{{ "%.0f"|format(rec.confidence * 100) }}%</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Portfolio Weight</span>
+                    <span class="value">{{ "%.1f"|format((rec.portfolio_target_weight or 0) * 100) }}%</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Risk Gate</span>
+                    <span class="value">{{ rec.risk_verdict }}</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Expected Return</span>
+                    <span class="value">{{ "%+.1f"|format((rec.expected_return or 0) * 100) }}%</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Expected Drawdown</span>
+                    <span class="value">{{ "%+.1f"|format((rec.expected_drawdown or 0) * 100) }}%</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Entry</span>
+                    <span class="value">{% if rec.decision == "HOLD" %}N/A{% elif rec.entry_zone %}${{ "%.2f"|format(rec.entry_zone[0]) }}–${{ "%.2f"|format(rec.entry_zone[1]) }}{% else %}N/A{% endif %}</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Stop</span>
+                    <span class="value">{% if rec.decision == "HOLD" %}N/A{% else %}${{ "%.2f"|format(rec.stop_loss) }}{% endif %}</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Targets</span>
+                    <span class="value">{% if rec.decision == "HOLD" %}N/A{% else %}{{ rec.targets|map('format_price')|join(', ') if rec.targets else 'N/A' }}{% endif %}</span>
+                </div>
+                <div class="v2-metric">
+                    <span class="label">Outcome</span>
+                    <span class="value">{% if rec.outcome_score is not none %}{{ "%.0f"|format(rec.outcome_score * 100) }}{% else %}Pending{% endif %}</span>
+                </div>
+            </div>
+
+            {# DR9 — protective-put cost field. Only renders when an open
+               position exists for this ticker AND a protective compute
+               succeeded; per DR3 default-empty, no row when no data. #}
+            {% set protect = protective_by_ticker.get(rec.ticker) if protective_by_ticker else None %}
+            {% if protect %}
+            <div class="protect-field">
+                <span class="protect-label">Protect</span>
+                <span class="option-type put">PUT</span>
+                <span class="protect-strike">${{ "%.2f"|format(protect.cost_per_share) }}/sh</span>
+                {% if protect.delta is not none %}
+                <span class="protect-delta">@ {{ "%.2f"|format(protect.delta) }}Δ</span>
+                {% endif %}
+                {% if protect.cost_pct_of_position is not none %}
+                <span class="protect-cost">· {{ "%.1f"|format(protect.cost_pct_of_position * 100) }}% pos</span>
+                {% endif %}
+                {% set greeks_src = (protect.greeks_source or 'none') %}
+                {% if greeks_src == 'provider' %}
+                <span class="greeks-confidence provider" aria-label="Greeks: provider verified" title="Greeks: provider verified">▲</span>
+                {% elif greeks_src == 'local_bs' %}
+                <span class="greeks-confidence local_bs" aria-label="Greeks: locally computed Black-Scholes" title="Greeks: locally computed (Black-Scholes)">△</span>
+                {% elif greeks_src == 'provider_nan' %}
+                <span class="greeks-confidence provider_nan" aria-label="Greeks: estimated, provider returned NaN" title="Greeks: estimated (provider NaN)">△</span>
+                {% else %}
+                <span class="greeks-confidence none" aria-label="Greeks: unavailable" title="Greeks: unavailable">·</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {# DR5 + DR9 — Spread/Protect two-tab disclosure inside the card.
+               Lazy-loaded: clicking a tab fetches via /api/options/thesis/{ticker}/{strategy}
+               and renders inline. Keeps the initial dashboard render fast. #}
+            <details class="thesis-disclosure" data-ticker="{{ rec.ticker }}" data-rec-id="{{ rec.recommendation_id }}">
+                <summary class="thesis-tabs-summary" style="cursor: pointer; font-size: 0.78rem; color: var(--accent); margin-top: 8px;">Thesis ↗</summary>
+                <div class="thesis-tabs">
+                    <button type="button" class="active" data-strategy="bullish_debit_spread">Spread</button>
+                    <button type="button" data-strategy="bearish_protective_put">Protect</button>
+                    <button type="button" data-strategy="neutral_iron_condor">Range</button>
+                </div>
+                <div class="option-thesis-panel" data-loaded="false">
+                    <div class="thesis-loading">Loading thesis…</div>
+                </div>
+            </details>
+
+            <div class="v2-thesis">{{ rec.thesis }}</div>
+            {% if rec.risk_reasons %}
+            <div class="v2-risk">Risk block: {{ rec.risk_reasons|join('; ') }}</div>
+            {% endif %}
+            {% if rec.execution_status %}
+            <div class="v2-meta">Execution: {{ rec.execution_status|replace('_', ' ') }}{% if rec.execution_return_pct is not none %} · {{ "%+.1f"|format(rec.execution_return_pct * 100) }}%{% endif %}</div>
+            {% endif %}
+            {% set rec_trades = rec.paper_trades_by_strategy or {} %}
+            {% if rec_trades %}
+            <div class="v2-paper">
+                <span class="paper-label">Paper</span>
+                {% for strat_name in ['aggressive', 'balanced', 'conservative'] %}
+                    {% set pt = rec_trades.get(strat_name) %}
+                    {% if pt %}
+                        {% set short = strat_name[:3]|upper %}
+                        <span class="paper-chip {{ pt.status }}" title="{{ strat_name|title }}: {{ pt.status_reason or pt.status }}">{{ short }} {{ pt.status|replace('_', ' ') }}{% if pt.status_reason and pt.status in ('execution_skipped', 'failed', 'unfilled_eod') %} · {{ pt.status_reason|truncate(20, true, '...') }}{% endif %}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if rec.alpha_outputs %}
+            <div class="alpha-strip">
+                {% for alpha in rec.alpha_outputs %}
+                <span class="alpha-chip {{ alpha.direction }}">{{ alpha.strategy_type|replace('_', ' ') }} {{ alpha.direction }} {{ "%.0f"|format((alpha.confidence or 0) * 100) }}%</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <h2 class="section-head">Compatibility Signal Table</h2>
+    <p class="legacy-note">Latest-state mirror kept for paper-trade status and old dashboard compatibility.</p>
+    {% elif signals %}
+    <p class="legacy-note">No immutable v2 recommendations were written for this date; showing legacy compatibility signals.</p>
+    {% endif %}
+    {% if signals %}
+    <table class="signals-table">
+        <thead>
+            <tr>
+                <th>Ticker</th>
+                <th>Recommendation</th>
+                <th>Confidence</th>
+                <th>Entry Zone</th>
+                <th>Stop</th>
+                <th>Target</th>
+                <th>R/R</th>
+                <th>Size</th>
+                <th>Risk</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in signals %}
+            <tr>
+                <td class="ticker">{{ s.ticker }}</td>
+                <td>
+                    {% set tradeable = s.risk_verdict.value == "APPROVED" and s.decision.value in ["BUY", "SELL"] and s.position_size_pct > 0 %}
+                    {% if tradeable %}
+                    <span class="recommendation-chip trade">{{ s.decision.value }}</span>
+                    <div class="action-subtext">Trade · {{ "%.1f"|format(s.position_size_pct * 100) }}%</div>
+                    {% elif s.decision.value == "HOLD" %}
+                    <span class="recommendation-chip hold">HOLD</span>
+                    <div class="action-subtext">No trade</div>
+                    {% else %}
+                    <span class="recommendation-chip blocked">NO TRADE</span>
+                    <div class="action-subtext">{{ s.decision.value }} blocked</div>
+                    {% endif %}
+                </td>
+                <td class="confidence {{ 'high' if s.confidence >= 0.8 else 'mid' if s.confidence >= 0.65 else 'low' }}">{{ "%.0f"|format(s.confidence * 100) }}%</td>
+                <td class="price">
+                    {% if s.decision.value == "HOLD" %}
+                    <span style="color: var(--text-faint);">--</span>
+                    {% else %}
+                    ${{ "%.2f"|format(s.entry_zone[0]) }}–${{ "%.2f"|format(s.entry_zone[1]) }}
+                    {% endif %}
+                </td>
+                <td class="price">
+                    {% if s.decision.value == "HOLD" %}
+                    <span style="color: var(--text-faint);">--</span>
+                    {% else %}
+                    ${{ "%.2f"|format(s.stop_loss) }}
+                    {% endif %}
+                </td>
+                <td class="price">
+                    {% if s.decision.value == "HOLD" %}
+                    <span style="color: var(--text-faint);">--</span>
+                    {% else %}
+                    {{ s.targets|map('format_price')|join(', ') if s.targets else 'N/A' }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.decision.value == "HOLD" %}
+                    <span style="color: var(--text-faint);">--</span>
+                    {% else %}
+                    {{ "%.1f"|format(s.reward_risk_ratio) }}x
+                    {% endif %}
+                </td>
+                <td>{{ "%.1f"|format(s.position_size_pct * 100) }}%</td>
+                <td><span class="verdict {{ s.risk_verdict.value }}">{{ s.risk_verdict.value }}</span>
+                    {# Wave 1.5: 3 paper-chips per signal, canonical AGG/BAL/CON order. #}
+                    {% set pt_by_strategy = paper_trades_by_ticker.get(s.ticker, {}) if paper_trades_by_ticker else {} %}
+                    {% if pt_by_strategy %}
+                    <span class="paper-chips-cluster">
+                        {% for strat_name in ['aggressive', 'balanced', 'conservative'] %}
+                            {% set pt = pt_by_strategy.get(strat_name) %}
+                            {% if pt %}
+                                {% set short = strat_name[:3]|upper %}
+                                <span class="paper-chip {{ pt.status }}" title="{{ strat_name|title }}: {{ pt.status_reason or pt.status }}">{{ short }} {{ pt.status|replace('_', ' ') }}{% if pt.status_reason and pt.status in ('execution_skipped', 'failed', 'unfilled_eod') %} · {{ pt.status_reason|truncate(20, true, '…') }}{% endif %}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.ticker in score_map %}
+                    {% set sc = score_map[s.ticker] %}
+                    <span class="score-badge {{ 'good' if sc >= 0.6 else 'ok' if sc >= 0.4 else 'bad' }}">{{ "%.0f"|format(sc * 100) }}</span>
+                    {% else %}
+                    <span style="color: var(--text-faint);">--</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="10">
+                    <details>
+                        <summary>Open recommendation ticket</summary>
+                        <div class="debate-panel">
+                            {% set tradeable = s.risk_verdict.value == "APPROVED" and s.decision.value in ["BUY", "SELL"] and s.position_size_pct > 0 %}
+                            <div class="ticket-grid">
+                                <div class="ticket-item">
+                                    <span class="label">Action</span>
+                                    <span class="value">{% if tradeable %}Trade {{ s.decision.value }}{% elif s.decision.value == "HOLD" %}Hold{% else %}No Trade{% endif %}</span>
+                                </div>
+                                <div class="ticket-item">
+                                    <span class="label">Confidence</span>
+                                    <span class="value">{{ "%.0f"|format(s.confidence * 100) }}%</span>
+                                </div>
+                                <div class="ticket-item">
+                                    <span class="label">{{ 'Entry' if tradeable else 'Proposed Entry' }}</span>
+                                    <span class="value">{% if s.decision.value == "HOLD" %}N/A{% else %}${{ "%.2f"|format(s.entry_zone[0]) }}–${{ "%.2f"|format(s.entry_zone[1]) }}{% endif %}</span>
+                                </div>
+                                <div class="ticket-item">
+                                    <span class="label">{{ 'Stop' if tradeable else 'Proposed Stop' }}</span>
+                                    <span class="value">{% if s.decision.value == "HOLD" %}N/A{% else %}${{ "%.2f"|format(s.stop_loss) }}{% endif %}</span>
+                                </div>
+                                <div class="ticket-item">
+                                    <span class="label">{{ 'Targets' if tradeable else 'Proposed Targets' }}</span>
+                                    <span class="value">{% if s.decision.value == "HOLD" %}N/A{% else %}{{ s.targets|map('format_price')|join(', ') if s.targets else 'N/A' }}{% endif %}</span>
+                                </div>
+                                <div class="ticket-item">
+                                    <span class="label">Risk Gate</span>
+                                    <span class="value">{{ s.risk_verdict.value }}</span>
+                                </div>
+                            </div>
+                            <p><strong>Thesis:</strong> {{ s.thesis }}</p>
+
+                            {% set debate = debate_by_ticker.get(s.ticker) if debate_by_ticker else None %}
+                            {% if debate and debate.judge_verdict %}
+                            {% set jv = debate.judge_verdict %}
+                            <div class="judge-verdict">
+                                <div class="judge-header">Judge: {{ jv.winner|upper }} {{ "%.1f"|format(jv.score) }}/10 (confidence {{ "%.0f"|format(jv.confidence * 100) }}%)</div>
+                                <div class="judge-swing">Swing argument: {{ jv.swing_argument }}</div>
+                            </div>
+                            {% endif %}
+
+                            {% if debate and debate.rounds and debate.rounds|length > 0 %}
+                            <div class="debate-timeline">
+                                {% for r in debate.rounds %}
+                                <div class="debate-round-header">Round {{ r.round }}</div>
+                                <div class="debate-round">
+                                    <div class="round-card bull-card">
+                                        <div class="role-label">Bull · target ${{ "%.2f"|format(r.bull.price_target) }}{% if r.bull.target_sanity %} adjusted{% endif %}</div>
+                                        {% if r.bull.target_sanity %}
+                                        <div class="v2-risk">Outlier target ${{ "%.2f"|format(r.bull.target_sanity.original) }} hidden. {{ r.bull.target_sanity.note }}</div>
+                                        {% else %}
+                                        <div>{{ r.bull.thesis }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="round-card bear-card">
+                                        <div class="role-label">Bear · target ${{ "%.2f"|format(r.bear.price_target) }}{% if r.bear.target_sanity %} adjusted{% endif %}</div>
+                                        {% if r.bear.target_sanity %}
+                                        <div class="v2-risk">Outlier target ${{ "%.2f"|format(r.bear.target_sanity.original) }} hidden. {{ r.bear.target_sanity.note }}</div>
+                                        {% else %}
+                                        <div>{{ r.bear.thesis }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <h3 class="bull">Bull Case</h3>
+                            <p>{{ s.bull_case }}</p>
+                            <h3 class="bear">Bear Case</h3>
+                            <p>{{ s.bear_case }}</p>
+                            {% endif %}
+
+                            {% if s.risk_reasons %}
+                            <h3 style="color: var(--red); font-size: 0.85rem; margin-bottom: 4px;">Risk Rejections</h3>
+                            <ul class="risk-reasons">
+                                {% for reason in s.risk_reasons %}
+                                <li>{{ reason }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+
+                            <div class="meta" style="margin-top: 12px;">
+                                <span>Hold: {{ s.holding_period_days }}d</span>
+                                <span>Invalidation: {{ s.invalidation }}</span>
+                                {# Wave 1.5: render one Paper line per strategy that ran on this signal. #}
+                                {% set pt_by_strategy = paper_trades_by_ticker.get(s.ticker, {}) if paper_trades_by_ticker else {} %}
+                                {% for strat_name in ['aggressive', 'balanced', 'conservative'] %}
+                                    {% set spt = pt_by_strategy.get(strat_name) %}
+                                    {% if spt %}
+                                    <span>Paper [{{ strat_name|title }}]: {{ spt.status|replace('_', ' ') }}{% if spt.status_reason %} — {{ spt.status_reason }}{% endif %}{% if spt.alpaca_order_id %} (alpaca {{ spt.alpaca_order_id[:8] }}…){% endif %}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </details>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif not recommendations %}
+    <div class="empty">
+        <p>{% if filter != 'all' %}No {{ filter|lower }} recommendations for {{ report_date }}.{% else %}No recommendations for {{ report_date }}.{% endif %}</p>
+        <p style="margin-top: 8px;">Click <strong>Run Analysis</strong> above to generate signals.</p>
+    </div>
+    {% endif %}
+
+    {% if changelog %}
+    <div class="changelog">
+        <h3>Changes since last run</h3>
+        {% for entry in changelog %}
+        <div class="changelog-item {{ entry.type }}">{{ entry.text }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if leaderboard %}
+    {% set total_scored = leaderboard|map(attribute='total')|max %}
+    <div class="leaderboard">
+        <h2>Agent Leaderboard</h2>
+        {% if total_scored >= 10 %}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Agent</th>
+                    <th>Scored</th>
+                    <th>Accuracy</th>
+                    <th>Last 7 Days</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for agent in leaderboard %}
+                <tr>
+                    <td style="text-transform: capitalize;">{{ agent.agent_name }}</td>
+                    <td>{{ agent.total }}</td>
+                    <td class="confidence {{ 'high' if agent.correct / agent.total >= 0.6 else 'mid' if agent.correct / agent.total >= 0.4 else 'low' }}">
+                        {{ "%.0f"|format(agent.correct / agent.total * 100) }}%
+                    </td>
+                    <td>
+                        {% if agent.recent_total > 0 %}
+                        <span class="confidence {{ 'high' if agent.recent_correct / agent.recent_total >= 0.6 else 'mid' if agent.recent_correct / agent.recent_total >= 0.4 else 'low' }}">
+                            {{ "%.0f"|format(agent.recent_correct / agent.recent_total * 100) }}%
+                        </span>
+                        <span style="color: var(--text-faint); font-size: 0.7rem;">({{ agent.recent_total }})</span>
+                        {% else %}
+                        <span style="color: var(--text-faint);">--</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="leaderboard-note">Insufficient data. Need at least 10 scored signals (currently {{ total_scored }}).</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <script>
+        function toggleDigest() {
+            document.getElementById('digestPanel').classList.toggle('open');
+        }
+
+        async function saveDigest() {
+            const text = document.getElementById('digestText').value.trim();
+            const feedback = document.getElementById('digestFeedback');
+            if (!text) {
+                feedback.textContent = 'Paste your digest first.';
+                feedback.style.color = 'var(--red)';
+                return;
+            }
+            feedback.textContent = 'Saving...';
+            feedback.style.color = 'var(--text-muted)';
+            try {
+                const res = await fetch('/api/digest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: text }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    feedback.textContent = 'Saved for ' + data.date;
+                    feedback.style.color = 'var(--green)';
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    throw new Error(data.error || 'Save failed');
+                }
+            } catch (err) {
+                feedback.textContent = 'Error: ' + err.message;
+                feedback.style.color = 'var(--red)';
+            }
+        }
+
+        async function refreshOptions() {
+            // Decision 17: POST returns 202 + queued; poll
+            // /api/options/refresh for the latest job progress.
+            const btn = document.getElementById('optionsRefreshBtn');
+            const status = document.getElementById('optionsRefreshStatus');
+            const tickers = '{{ option_refresh_tickers }}'.split(',').filter(Boolean);
+            btn.disabled = true;
+            status.textContent = 'Queuing refresh...';
+            status.className = 'slot stale';
+            try {
+                const res = await fetch('/api/options/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tickers, max_expirations: 4 }),
+                });
+                if (res.status === 409) {
+                    throw new Error('Another refresh is already running');
+                }
+                if (!res.ok && res.status !== 202) {
+                    throw new Error('Refresh failed to queue');
+                }
+                status.textContent = 'Refresh queued...';
+                pollOptionsRefresh(btn, status);
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'slot expired';
+                btn.disabled = false;
+            }
+        }
+
+        async function pollOptionsRefresh(btn, status) {
+            // Poll every 2s per DR2; latest endpoint surfaces current job state.
+            const MAX_POLLS = 90; // 3 min budget
+            for (let i = 0; i < MAX_POLLS; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                try {
+                    const r = await fetch('/api/options/refresh');
+                    if (!r.ok) continue;
+                    const job = await r.json();
+                    if (!job || job.status === 'idle') {
+                        // Cron-triggered runs may finish before our first poll.
+                        status.textContent = 'Refresh complete · reloading...';
+                        status.className = 'slot fresh';
+                        setTimeout(() => window.location.reload(), 800);
+                        return;
+                    }
+                    if (job.status === 'running') {
+                        status.textContent = `Refreshing ${job.completed}/${job.total}`;
+                        status.className = 'slot stale';
+                        continue;
+                    }
+                    if (job.status === 'success') {
+                        const failed = (job.failures || []).length;
+                        status.textContent = failed
+                            ? `Refresh partial · ${failed} failed · reloading...`
+                            : 'Refresh complete · reloading...';
+                        status.className = failed ? 'slot stale' : 'slot fresh';
+                        setTimeout(() => window.location.reload(), 800);
+                        return;
+                    }
+                    if (job.status === 'failed') {
+                        status.textContent = 'Refresh failed';
+                        status.className = 'slot expired';
+                        btn.disabled = false;
+                        return;
+                    }
+                } catch (err) {
+                    // Transient network errors during polling: keep trying.
+                }
+            }
+            status.textContent = 'Refresh polling timeout';
+            status.className = 'slot stale';
+            btn.disabled = false;
+        }
+
+        // DR5 + DR9 — Thesis disclosure lazy-loader. Clicking a tab fetches
+        // /api/options/thesis/{ticker}/{strategy} and renders the structured
+        // payload + narrative. Defers LLM cost until the user actually asks.
+        function setupThesisDisclosures() {
+            document.querySelectorAll('.thesis-disclosure').forEach(detail => {
+                const ticker = detail.dataset.ticker;
+                const recId = detail.dataset.recId;
+                const panel = detail.querySelector('.option-thesis-panel');
+                const tabs = detail.querySelectorAll('.thesis-tabs button');
+                const loadStrategy = async (strategy) => {
+                    panel.innerHTML = '<div class="thesis-loading">Loading thesis…</div>';
+                    panel.dataset.loaded = 'loading';
+                    try {
+                        const params = new URLSearchParams();
+                        if (recId) params.set('recommendation_id', recId);
+                        const qs = params.toString() ? `?${params.toString()}` : '';
+                        const res = await fetch(`/api/options/thesis/${encodeURIComponent(ticker)}/${strategy}${qs}`);
+                        if (!res.ok) {
+                            panel.innerHTML = `<div class="thesis-loading">No thesis available (${res.status})</div>`;
+                            return;
+                        }
+                        const data = await res.json();
+                        panel.innerHTML = renderThesisPanel(data);
+                        panel.dataset.loaded = 'true';
+                    } catch (err) {
+                        panel.innerHTML = `<div class="thesis-loading">Error: ${err.message}</div>`;
+                    }
+                };
+                tabs.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        tabs.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        loadStrategy(btn.dataset.strategy);
+                    });
+                });
+                detail.addEventListener('toggle', () => {
+                    if (detail.open && panel.dataset.loaded === 'false') {
+                        const active = detail.querySelector('.thesis-tabs button.active');
+                        loadStrategy(active ? active.dataset.strategy : 'bullish_debit_spread');
+                    }
+                });
+            });
+        }
+
+        function renderThesisPanel(data) {
+            if (data.status === 'fail' || !data.structure) {
+                return `<div class="thesis-loading">No spread available for this strategy.</div>`;
+            }
+            const s = data.structure;
+            const legsHtml = (s.legs || []).map(leg => `
+                <div class="option-thesis-leg">
+                    <span class="qty ${leg.qty_sign > 0 ? 'long' : 'short'}">${leg.qty_sign > 0 ? '+1' : '-1'}</span>
+                    <span class="option-type ${leg.option_type}">${leg.option_type.toUpperCase()}</span>
+                    <span class="strike">$${leg.strike.toFixed(2)}</span>
+                    <span class="leg-mid">@ $${leg.mid.toFixed(2)}</span>
+                </div>
+            `).join('');
+            const netDebit = s.net_debit_per_share;
+            const debitLabel = netDebit > 0 ? `Debit $${netDebit.toFixed(2)}` : `Credit $${(-netDebit).toFixed(2)}`;
+            const debitClass = netDebit > 0 ? 'neg' : 'pos';
+            const maxProfit = s.max_profit_per_share != null
+                ? `<span class="stat pos">$${s.max_profit_per_share.toFixed(2)}</span>` : '—';
+            const maxLoss = s.max_loss_per_share != null
+                ? `<span class="stat neg">$${s.max_loss_per_share.toFixed(2)}</span>` : '—';
+            const breakeven = (s.breakeven || []).map(b => `$${b.toFixed(2)}`).join(' / ') || '—';
+            const narrative = data.status === 'success'
+                ? `<div class="option-thesis-narrative">${escapeHtml(s.narrative || '')}</div>`
+                : `<div class="option-thesis-narrative unavailable">(rationale unavailable, retry pending)</div>`;
+            return `
+                <div class="panel-col">
+                    <div class="col-head">Structure</div>
+                    ${legsHtml}
+                    ${renderPayoffSvg(s)}
+                    <div class="option-thesis-summary">
+                        <span><span class="stat ${debitClass}">${debitLabel}</span></span>
+                        <span>Max profit ${maxProfit}</span>
+                        <span>Max loss ${maxLoss}</span>
+                        <span>Breakeven ${breakeven}</span>
+                    </div>
+                </div>
+                <div class="panel-col">
+                    <div class="col-head">Rationale</div>
+                    ${narrative}
+                    <div class="thesis-feedback">
+                        <button type="button" class="up" data-vote="up" aria-label="Thumbs up">👍 helpful</button>
+                        <button type="button" class="down" data-vote="down" aria-label="Thumbs down">👎 not</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPayoffSvg(structure) {
+            // Tiny 80x40 payoff schematic. Y axis = signed P/L; X axis = price.
+            // Sketch only — exact strike positions are derived from the legs
+            // but the curve is illustrative (not pixel-accurate at the strikes).
+            const legs = structure.legs || [];
+            if (!legs.length) return '';
+            const strikes = legs.map(l => l.strike);
+            const lo = Math.min(...strikes) * 0.92;
+            const hi = Math.max(...strikes) * 1.08;
+            const samples = 17;
+            const points = [];
+            for (let i = 0; i < samples; i++) {
+                const price = lo + (hi - lo) * (i / (samples - 1));
+                let pnl = 0;
+                for (const leg of legs) {
+                    const intrinsic = leg.option_type === 'call'
+                        ? Math.max(0, price - leg.strike)
+                        : Math.max(0, leg.strike - price);
+                    pnl += leg.qty_sign * (intrinsic - leg.mid);
+                }
+                points.push({ x: i / (samples - 1), pnl });
+            }
+            const maxAbs = Math.max(0.01, ...points.map(p => Math.abs(p.pnl)));
+            const W = 80, H = 40;
+            const path = points.map((p, i) => {
+                const x = p.x * W;
+                const y = H / 2 - (p.pnl / maxAbs) * (H / 2 - 2);
+                return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            return `<svg class="option-payoff-svg" viewBox="0 0 ${W} ${H}" aria-label="Payoff diagram">
+                <line class="payoff-zero" x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}"/>
+                <path class="payoff-line" d="${path}"/>
+            </svg>`;
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        // Decision 26 — fire one cockpit_view per panel on mount. Fire-and-
+        // forget: errors are swallowed so a network blip can't leave the UI
+        // in a broken state. Reads which panels are present in the rendered
+        // page so empty cockpits don't emit phantom views.
+        function reportCockpitViews() {
+            const panels = [];
+            if (document.querySelector('.iv-screener-table')) panels.push('screener');
+            if (document.querySelector('.protect-field')) panels.push('protect');
+            if (document.querySelector('.thesis-disclosure')) panels.push('thesis');
+            if (document.querySelector('.options-table')) panels.push('flow');
+            for (const panel of panels) {
+                fetch('/api/options/cockpit/view', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ panel }),
+                }).catch(() => {});
+            }
+        }
+
+        // Decision 26 — thumbs-up/down. The button gets the .active state
+        // optimistically; a server failure quietly falls back without
+        // toggling — same fail-open posture as the server endpoint.
+        function setupThesisFeedback() {
+            document.body.addEventListener('click', (e) => {
+                const btn = e.target.closest('.thesis-feedback button');
+                if (!btn) return;
+                const disc = btn.closest('.thesis-disclosure');
+                if (!disc) return;
+                const ticker = disc.dataset.ticker;
+                const recId = disc.dataset.recId;
+                const activeTab = disc.querySelector('.thesis-tabs button.active');
+                const strategy = activeTab ? activeTab.dataset.strategy : 'bullish_debit_spread';
+                const sentiment = btn.dataset.vote;
+                btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                fetch('/api/options/thesis/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker, strategy, recommendation_id: recId, sentiment }),
+                }).catch(() => {});
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupThesisDisclosures();
+            setupThesisFeedback();
+            reportCockpitViews();
+        });
+
+        let runState = 'idle'; // 'idle' | 'running' | 'stopping'
+
+        function onRunButtonClick() {
+            if (runState === 'idle') {
+                runAnalysis();
+            } else if (runState === 'running') {
+                stopAnalysis();
+            }
+            // 'stopping' ignores clicks
+        }
+
+        async function stopAnalysis() {
+            const btn = document.getElementById('runBtn');
+            const status = document.getElementById('runStatus');
+            runState = 'stopping';
+            btn.disabled = true;
+            btn.className = 'btn-run running';
+            btn.textContent = 'Stopping...';
+            status.innerHTML = '<span class="spinner"></span>Stop requested. Finishing current ticker, then aborting...';
+            try {
+                await fetch('/api/run/stop', { method: 'POST' });
+            } catch (err) {
+                // The run loop will still see the signal once the stop request lands;
+                // network hiccups here are cosmetic.
+            }
+        }
+
+        async function runAnalysis() {
+            const btn = document.getElementById('runBtn');
+            const status = document.getElementById('runStatus');
+
+            runState = 'running';
+            btn.disabled = false;
+            btn.className = 'btn-run stop';
+            btn.textContent = 'Stop';
+
+            status.className = 'run-status visible';
+            status.innerHTML = '<span class="spinner"></span>Running pipeline across all tickers... this may take a few minutes. Click <strong>Stop</strong> to abort.';
+
+            try {
+                const res = await fetch('/api/run', { method: 'POST' });
+                const data = await res.json();
+
+                if (res.ok) {
+                    const attempted = (data.attempted || []).length;
+                    const completed = (data.completed || []).length;
+                    const failed = (data.failed || []);
+                    const stopped = runState === 'stopping';
+                    const degraded = failed.length > 0;
+
+                    if (stopped) {
+                        btn.className = 'btn-run error';
+                        btn.textContent = 'Stopped';
+                    } else {
+                        btn.className = degraded ? 'btn-run running' : 'btn-run success';
+                        btn.textContent = degraded ? 'Partial' : 'Done';
+                    }
+
+                    let summary = stopped
+                        ? `Stopped: <strong>${completed}/${attempted}</strong> tickers completed, <strong>${data.signals_generated}</strong> signals`
+                        : `Pipeline complete: <strong>${completed}/${attempted}</strong> tickers, <strong>${data.signals_generated}</strong> signals`;
+                    if (failed.length) {
+                        summary += `. Skipped/failed: ${failed.join(', ')}`;
+                    }
+                    summary += '. Reloading...';
+                    status.innerHTML = summary;
+                    setTimeout(() => window.location.reload(), 1800);
+                } else {
+                    throw new Error(data.detail || 'Pipeline failed');
+                }
+            } catch (err) {
+                btn.className = 'btn-run error';
+                btn.textContent = 'Failed';
+                btn.disabled = true;
+                status.innerHTML = `Error: ${err.message}`;
+                setTimeout(() => {
+                    runState = 'idle';
+                    btn.disabled = false;
+                    btn.className = 'btn-run';
+                    btn.textContent = 'Run Analysis';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>

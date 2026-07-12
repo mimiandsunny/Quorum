@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+*.db
+*.log
+logs/*.jsonl
+.DS_Store
+/data/external/*
+stockinvest.log

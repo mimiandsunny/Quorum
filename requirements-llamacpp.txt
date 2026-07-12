@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Optional local llama.cpp backend. For NVIDIA/CUDA builds, install with:
+# CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 pip install --force-reinstall --no-cache-dir --no-binary llama-cpp-python -r requirements-llamacpp.txt
+llama-cpp-python>=0.3.8
+huggingface_hub[hf_xet]>=1.0.0
