@@ -51,6 +51,25 @@ data → analysts → researchers (multi-round debate) → judge → trader
 Results are served through a FastAPI dashboard and API, and a scheduler runs the
 whole pipeline automatically before market open.
 
+### The dashboard
+
+A few views of the localhost dashboard the pipeline feeds:
+
+![Options Cockpit dashboard showing the IV-rank screener and a scored options-candidate table](image.png)
+*The **Options Cockpit** (Wave 2 options layer): an IV-rank screener building history across the ticker universe, plus a scored candidate table — DTE, strike, mid, IV, bid/ask spread, volume/OI, and premium — tagged for cheap vol, unusual flow, tight spread, and near-money contracts.*
+
+![Grid of per-ticker signal cards showing BUY and HOLD recommendations](image-1.png)
+*The **signal board**: one card per ticker with the recommendation (BUY / HOLD), confidence, portfolio weight, risk-gate status, and precise entry / stop / target levels — plus a plain-English thesis and per-strategy paper-trade submission status (Aggressive / Balanced / Conservative).*
+
+![Signal cards marked NO TRADE with risk-block reasons, above a compatibility signal table](image-2.png)
+*Signals the **risk manager rejected** (NO TRADE): each card shows the exact reason a trade was blocked — confidence below the floor, stop distance over the cap, or an earnings-event conflict. The Compatibility Signal Table at the bottom mirrors latest-state for paper-trade tracking.*
+
+![Expanded recommendation ticket showing the bull vs. bear debate over multiple rounds](image-3.png)
+*An expanded **recommendation ticket** (ISRG): the judge's verdict and confidence, followed by the full multi-round bull-vs-bear debate with each side's price target, and the risk rejections that gated it.*
+
+![Expanded SMCI ticket with the analyst debate and a changes-since-last-run panel](image-4.png)
+*Another expanded ticket (SMCI) showing the round-by-round debate and swing argument, with the **Changes Since Last Run** panel highlighting newly promoted BUY signals across the universe.*
+
 ### LLM routing
 
 Analysts can run **local** (via [Ollama](https://ollama.com) or `llama.cpp`),

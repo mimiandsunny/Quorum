@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
@@ -46,7 +47,10 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(LOG_DIR / "stockinvest.log"),
+        # WatchedFileHandler reopens the file if it's deleted or rotated out
+        # from under a running process, so `rm logs/stockinvest.log` self-heals
+        # on the next log line instead of writing to a ghost (unlinked) inode.
+        logging.handlers.WatchedFileHandler(LOG_DIR / "stockinvest.log"),
     ],
 )
 
