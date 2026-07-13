@@ -1,8 +1,8 @@
-# stockinvest
+# Quorum
 
 **A hedge-fund investment committee running on your laptop.**
 
-stockinvest is a multi-agent equity research tool. Every morning before the
+Quorum is a multi-agent equity research tool. Every morning before the
 market opens, a team of LLM-powered analysts debate each ticker — bull vs. bear,
 synthesized by a trader, approved by a risk manager — and produce actionable
 signals with precise entry, exit, and stop levels. Signals are validated by
@@ -99,8 +99,8 @@ configurable fallback, so the pipeline degrades gracefully instead of failing.
 
 ```bash
 # 1. Clone and create a virtualenv
-git clone <your-repo-url> stockinvest
-cd stockinvest
+git clone https://github.com/mimiandsunny/Quorum.git
+cd Quorum
 python -m venv .venv && source .venv/bin/activate
 
 # 2. Install dependencies
