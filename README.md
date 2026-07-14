@@ -70,6 +70,9 @@ A few views of the localhost dashboard the pipeline feeds:
 ![Expanded SMCI ticket with the analyst debate and a changes-since-last-run panel](image-4.png)
 *Another expanded ticket (SMCI) showing the round-by-round debate and swing argument, with the **Changes Since Last Run** panel highlighting newly promoted BUY signals across the universe.*
 
+![Recommendation ledger cards showing options structures with legs, cost, and breakeven](image-5.png)
+*The **recommendation ledger**: each card can express its thesis as a concrete options structure — Spread / Protect / Range — with the individual call/put legs, net credit or debit, max profit, max loss, and breakeven laid out, alongside the paper-execution status for each strategy.*
+
 ### LLM routing
 
 Analysts can run **local** (via [Ollama](https://ollama.com) or `llama.cpp`),
