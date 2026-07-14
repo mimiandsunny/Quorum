@@ -65,6 +65,15 @@ logging.getLogger("peewee").setLevel(logging.WARNING)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # E3: seed per-strategy equity snapshots on first boot so the dashboard
+    # summary panel isn't stuck on "collecting data…" until the 4:10 PM ET
+    # scheduler job fires. Cheap no-op once snapshots exist.
+    try:
+        from agents.paper_reconciler import maybe_seed_snapshots_on_boot
+
+        maybe_seed_snapshots_on_boot()
+    except Exception as exc:
+        logging.getLogger(__name__).warning(f"snapshot boot-seed skipped: {exc}")
     # A3: a uvicorn restart mid-refresh leaves the running-job slot
     # permanently locked unless we sweep stale rows on boot.
     zombie_count = cleanup_zombie_option_refresh_jobs()
